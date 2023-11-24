@@ -1,9 +1,8 @@
 from datetime import datetime
 from time import sleep
 
-from old_question_collector import load_questions, save_questions
 from question_collector import QuestionCollector
-from questions_helper import get_no_answer_amount
+from questions_helper import get_no_answer_amount, load_questions, save_questions
 
 if __name__ == '__main__':
     while True:
