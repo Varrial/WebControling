@@ -1,7 +1,9 @@
+from datetime import datetime
 from time import sleep
 
 from old_question_collector import load_questions, save_questions
 from question_collector import QuestionCollector
+from questions_helper import get_no_answer_amount
 
 if __name__ == '__main__':
     while True:
@@ -14,6 +16,7 @@ if __name__ == '__main__':
         collector.process_exam()
 
         save_questions(collector.get_known_questions())
-        del collector
+        print(f"{datetime.now().strftime('%H:%M:%S')} - zaktualizowano pytania. Bez odpowiedzi: {get_no_answer_amount()}")
+        sleep(2)
 
-        sleep(5.1*60)
+        del collector

@@ -1,13 +1,28 @@
 from time import sleep
 
+from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+
 from data import *
 
 
 class QuestionCollector:
-    def __init__(self, questions: list):
+    def __init__(self, questions: list, headless=True, disable_gpu=True, safe_user_data=False):
         self._known_questions = questions.copy()
-        self.driver = webdriver.Chrome()
+
+        options = Options()
+
+        if headless:
+            options.add_argument('--headless')
+
+        if disable_gpu:
+            options.add_argument('--disable-gpu')
+
+        if safe_user_data:
+            options.add_argument('--user-data-dir=web_user_data')
+
+        self.driver = webdriver.Firefox(options=options)
 
     def go_to_page(self, adres: str):
         self.driver.get(adres)
@@ -145,9 +160,12 @@ class QuestionCollector:
         # Zatwierdź wszystkie i zakończ
         self.driver.find_elements(by="css selector", value="button.btn.btn-secondary")[-1].click()
 
-        sleep(.1)
         # Potwierdzenie
-        self.driver.find_element(by="css selector", value="input.btn.btn-primary").click()
+        sleep(.2)
+        try:
+            self.driver.find_element(by="css selector", value="input.btn.btn-primary").click()
+        except NoSuchElementException:
+            pass
 
     def _click_next_page_button(self):
         self.driver.find_element(by="css selector", value="input.mod_quiz-next-nav").click()
@@ -222,7 +240,6 @@ class QuestionCollector:
     def _is_single_to_type(is_single):
         return "single" if is_single else "multi"
 
-
     @staticmethod
     def _append_answers(known_question, answers):
         known_question['answers'] = list(set(known_question['answers'] + answers))
@@ -235,7 +252,7 @@ class QuestionCollector:
                 chosen_answers = [chosen_answers]
 
             for chosen_answer in chosen_answers:
-                if option.text[1:] == f'. {chosen_answer}':
+                if option.text[1:].strip() == f'. {chosen_answer}':
                     option.find_element(by="css selector", value="input").click()
                     return
 
@@ -243,3 +260,5 @@ class QuestionCollector:
 
     def __del__(self):
         self.driver.close()
+'. Tak dotyczy porozumień między niekonkurencyjnymi ze sobą podmiotami, gdy udział w rynku któregokolwiek z nich nie przekracza 10%. '
+'. Tak dotyczy porozumień między niekonkurencyjnymi ze sobą podmiotami, gdy udział w rynku któregokolwiek z nich nie przekracza 10%.'

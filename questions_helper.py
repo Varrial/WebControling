@@ -31,5 +31,19 @@ def prepare_readable_questions():
             file.write(text)
 
 
+def get_no_answer_amount():
+    questions = load_questions()
+    no_answer = 0
+    answer = 0
+
+    for question in questions:
+        if question['correct']:
+            answer += 1
+        else:
+            no_answer += 1
+
+    return f"{no_answer}/{answer}"
+
+
 if __name__ == '__main__':
     prepare_readable_questions()
