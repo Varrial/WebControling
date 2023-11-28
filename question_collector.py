@@ -260,5 +260,3 @@ class QuestionCollector:
 
     def __del__(self):
         self.driver.close()
-'. Tak dotyczy porozumień między niekonkurencyjnymi ze sobą podmiotami, gdy udział w rynku któregokolwiek z nich nie przekracza 10%. '
-'. Tak dotyczy porozumień między niekonkurencyjnymi ze sobą podmiotami, gdy udział w rynku któregokolwiek z nich nie przekracza 10%.'
