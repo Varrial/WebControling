@@ -33,16 +33,13 @@ def prepare_readable_questions():
 
 def get_no_answer_amount():
     questions = load_questions()
-    no_answer = 0
     answer = 0
 
     for question in questions:
         if question['correct']:
             answer += 1
-        else:
-            no_answer += 1
 
-    return f"{no_answer}/{answer}"
+    return f"{answer}/{len(questions)}"
 
 
 if __name__ == '__main__':

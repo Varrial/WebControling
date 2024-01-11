@@ -15,7 +15,7 @@ if __name__ == '__main__':
         collector.process_exam()
 
         save_questions(collector.get_known_questions())
-        print(f"{datetime.now().strftime('%H:%M:%S')} - zaktualizowano pytania. Bez odpowiedzi: {get_no_answer_amount()}")
-        sleep(2)
+        print(
+            f"{datetime.now().strftime('%H:%M:%S')} - zaktualizowano pytania. Znane odpowiedzi: {get_no_answer_amount()}")
 
         del collector

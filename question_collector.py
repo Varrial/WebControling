@@ -8,7 +8,7 @@ from data import *
 
 
 class QuestionCollector:
-    def __init__(self, questions: list, headless=True, disable_gpu=True, safe_user_data=False):
+    def __init__(self, questions: list, headless=True, disable_gpu=True, safe_user_data=False, no_sandbox=False):
         self._known_questions = questions.copy()
 
         options = Options()
@@ -22,7 +22,10 @@ class QuestionCollector:
         if safe_user_data:
             options.add_argument('--user-data-dir=web_user_data')
 
-        self.driver = webdriver.Firefox(options=options)
+        if no_sandbox:
+            options.add_argument('--no-sandbox')
+
+        self.driver = webdriver.Chrome(options=options)
 
     def go_to_page(self, adres: str):
         self.driver.get(adres)
@@ -84,9 +87,11 @@ class QuestionCollector:
         return len(self.driver.find_elements(by='css selector', value='td.lastcol'))
 
     def _solve_exam(self):
-        for _ in range(self._get_question_amount()):
+        while True:
             self._process_question()
             self._click_next_page_button()
+            if self._all_question_answered():
+                break
         self._click_finish_exam()
 
     def _learn_from_exam(self):
@@ -170,8 +175,11 @@ class QuestionCollector:
     def _click_next_page_button(self):
         self.driver.find_element(by="css selector", value="input.mod_quiz-next-nav").click()
 
-    def _get_question_amount(self) -> int:
-        return len(self.driver.find_elements(by='css selector', value='div.qn_buttons > a'))
+    def _all_question_answered(self) -> bool:
+        last_question_selector = self.driver.find_elements(by='css selector', value='div.qn_buttons > a')[-1]
+        classes_of_last_question = last_question_selector.get_attribute('class').split()
+
+        return 'answersaved' in classes_of_last_question
 
     def _read_question(self, source=None) -> str:
         if not source:
