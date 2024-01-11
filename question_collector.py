@@ -1,6 +1,6 @@
 from time import sleep
 
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 
@@ -57,14 +57,20 @@ class QuestionCollector:
             .click()
 
         # Test password
-        self.driver \
-            .find_element(by='id', value='id_quizpassword') \
-            .send_keys(passwords['exam_password'])
+        try:
+            self.driver \
+                .find_element(by='id', value='id_quizpassword') \
+                .send_keys(passwords['exam_password'])
+        except NoSuchElementException:
+            pass
 
         # Test password submit
-        self.driver \
-            .find_element(by='id', value='id_submitbutton') \
-            .click()
+        try:
+            self.driver \
+                .find_element(by='id', value='id_submitbutton') \
+                .click()
+        except NoSuchElementException:
+            pass
 
     def process_exam(self):
         self._start_exam()
@@ -101,18 +107,34 @@ class QuestionCollector:
             question = self._read_question(source=question_box)
             is_single = self._is_single_answer(source=question_box)
             answer_boxes = self._read_answers(source=question_box, return_text=False)
-            answers_texts = self._read_answers(source=question_box)
+            answers_texts = self._read_correct_answers(source=question_box)
+
+            answer_options = []
+            for answer in answer_boxes:
+                answer_options.append(answer.text[3:])
+
+            if isinstance(answers_texts, str):
+                answers_texts = self._list_from_answers_texts(answers_texts, answer_options)
 
             known_question = self._get_known_question_if_exist(question, is_single)
 
             if known_question:
-                self._append_answers(known_question, answers_texts)
-                self._fill_correct_incorrect_fields(known_question, answer_boxes, delete_duplicates=True)
+                # self._append_answers(known_question, answers_texts)
+                # self._fill_correct_incorrect_fields(known_question, answer_boxes, delete_duplicates=True)
+                pass
 
             else:
-                question_dict = self._prepare_dict(question, is_single, answers_texts)
-                self._fill_correct_incorrect_fields(question_dict, answer_boxes)
+                question_dict = self._prepare_dict(
+                    question=question,
+                    is_single=is_single,
+                    answers_texts=answer_options,
+                    correct=answers_texts
+                )
+                # self._fill_correct_incorrect_fields(question_dict, answer_boxes)
                 self._known_questions.append(question_dict)
+
+    def _decide_question(self):
+        pass
 
     def _fill_correct_incorrect_fields(self, source: dict, answer_boxes, delete_duplicates=False):
         for answer_box in answer_boxes:
@@ -157,9 +179,12 @@ class QuestionCollector:
         if known_question is not None:
             chosen_answer = self._choose_answer(known_question, answers)
         else:
+            if not answers:
+                return
             chosen_answer = answers[0]
 
-        self._click_chosen_answers(chosen_answer)
+        if chosen_answer:
+            self._click_chosen_answers(chosen_answer)
 
     def _click_finish_exam(self):
         # Zatwierdź wszystkie i zakończ
@@ -176,7 +201,7 @@ class QuestionCollector:
         self.driver.find_element(by="css selector", value="input.mod_quiz-next-nav").click()
 
     def _all_question_answered(self) -> bool:
-        last_question_selector = self.driver.find_elements(by='css selector', value='div.qn_buttons > a')[-1]
+        last_question_selector = self.driver.find_elements(by='css selector', value='.qnbutton')[-1]
         classes_of_last_question = last_question_selector.get_attribute('class').split()
 
         return 'answersaved' in classes_of_last_question
@@ -195,7 +220,15 @@ class QuestionCollector:
             source = self.driver
 
         elements = source.find_elements(by='css selector', value='div.answer > div > input')
-        answer_type = elements[0].get_attribute('type')
+        try:
+            answer_type = elements[0].get_attribute('type')
+        except IndexError:
+            # open question
+            return False
+
+        if answer_type == 'hidden':
+            answer_type = elements[1].get_attribute('type')
+
         if answer_type == 'radio':
             return True
 
@@ -224,6 +257,22 @@ class QuestionCollector:
 
         return answers
 
+    def _read_correct_answers(self, source=None):
+        if not source:
+            source = self.driver
+
+        element = source.find_element(by='xpath', value='..')
+        answer = element.find_element(by='css selector', value='.outcome .feedback .rightanswer').text
+
+        if answer.startswith('Poprawna odpowiedź to: '):
+            answer = answer[23:]
+            return [answer]
+        elif answer.startswith('Prawidłowymi odpowiedziami są: '):
+            answer = answer[31:]
+
+        return answer
+
+
     @staticmethod
     def _choose_answer(known_question, answers):
         if known_question['correct']:
@@ -233,7 +282,8 @@ class QuestionCollector:
         answers = [element for element in answers if element not in known_question['incorrect']]
 
         if len(answers) == 0:
-            raise Exception("no correct answer")
+            return
+            # raise Exception("no correct answer")
 
         return answers[0]
 
@@ -261,10 +311,40 @@ class QuestionCollector:
 
             for chosen_answer in chosen_answers:
                 if option.text[1:].strip() == f'. {chosen_answer}':
-                    option.find_element(by="css selector", value="input").click()
+                    try:
+                        option.find_element(by="css selector", value="input").click()
+                    except ElementNotInteractableException:
+                        option.find_element(by="css selector", value="label").click()
                     return
 
         raise Exception(f"Cannot find Chosen Answer: {chosen_answers}")
 
     def __del__(self):
         self.driver.close()
+
+    def _list_from_answers_texts(self, answers_texts, options):
+        # GPT
+        # Twoja lista odpowiedzi
+        odpowiedzi = options
+
+        # String z prawidłowymi odpowiedziami
+        prawidlowe_str = answers_texts
+
+        # Sortowanie odpowiedzi od najdłuższej do najkrótszej
+        posortowane_odpowiedzi = sorted(odpowiedzi, key=len, reverse=True)
+
+        # Lista do przechowywania indeksów prawidłowych odpowiedzi
+        prawidlowe_indeksy = []
+
+        for odpowiedz in posortowane_odpowiedzi:
+            if odpowiedz in prawidlowe_str:
+                prawidlowe_indeksy.append(odpowiedzi.index(odpowiedz))
+                # Usuwanie wystąpienia odpowiedzi z tekstu
+                prawidlowe_str = prawidlowe_str.replace(odpowiedz, '')
+
+        odpowiedzi = list()
+        for index in sorted(prawidlowe_indeksy):
+            odpowiedzi.append(options[index])
+
+        return odpowiedzi
+
